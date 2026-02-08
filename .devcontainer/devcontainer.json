@@ -1,0 +1,19 @@
+{
+    "name": "Karto Kalpi Dev Container",
+    "image": "karto-kalpi:latest",
+	// "mounts": [
+	// 	"source=/etc/localtime,target=/etc/localtime,type=bind,consistency=cached",
+    //     "source=${localEnv:HOME}/Downloads,target=/home/Downloads,type=bind"
+    // ],
+    "customizations": {
+        "vscode": {
+            "extensions": [
+				"GitHub.copilot"
+            ]
+        }
+    },
+    // "postCreateCommand": "",
+    // "remoteUser": "vscode"
+	// "forwardPorts": [8080],
+	// "runArgs": ["--env-file", ".devcontainer/.env"]
+}
