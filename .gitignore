@@ -1,0 +1,17 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.env
+
+# Virtual environments
+.venv
+.DS_Store
+data/votes_knesset_21.csv
+data/votes_knesset_22.csv
+data/votes_knesset_23.csv
+data/votes_knesset_24.csv
+data/votes_knesset_25.csv
