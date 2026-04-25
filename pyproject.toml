@@ -1,7 +1,7 @@
 [project]
 name = "kartokalpi"
 version = "0.1.0"
-description = "Add your description here"
+description = "Interactive Knesset election map with a FastAPI backend and React frontend"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

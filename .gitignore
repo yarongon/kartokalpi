@@ -1,4 +1,11 @@
-# Python-generated files
+.DS_Store
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+node_modules/
+src/frontend/node_modules/
+src/frontend/dist/# Python-generated files
 __pycache__/
 *.py[oc]
 build/

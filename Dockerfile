@@ -49,13 +49,9 @@ WORKDIR /app
 # 3000 for React frontend development server (if running in dev mode)
 EXPOSE 8000 3000
 
-# Create startup script that runs the backend
-# In production, the built frontend is served as static files
-# In development, you can run the frontend separately with npm start
-RUN echo '#!/bin/bash\n\
-echo "Starting Karto-Kalpi backend..."\n\
-uv run uvicorn src.backend.main:app --host 0.0.0.0 --port 8000\n\
-' > /app/start.sh && chmod +x /app/start.sh
+# Copy startup script that runs the backend
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
 
 # Default command - runs backend server
 CMD ["/app/start.sh"]

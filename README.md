@@ -4,6 +4,11 @@
 
 Karto-Kalpi is an interactive visualization platform that enables users to explore Israel's Knesset general election results through a geographical map interface.
 
+The project now includes:
+
+- A FastAPI backend that loads ballot-level election results, turnout statistics, party metadata, and mapped ballot locations from the CSV files in `data/`.
+- A React + Leaflet frontend that renders the national ballot map, election and party selectors, popup statistics, and a historical trend chart for selected map locations.
+
 ## Features
 
 - **General Elections Overview**:
@@ -67,25 +72,30 @@ kartokalpi/
 
 ### Prerequisites
 - Python 3.13+
-- Node.js 24+
+- Node.js 20+
 - Docker (optional)
 
 ### Running the Project
 
 #### Local Development
 ```bash
+uv sync --dev
+
 # Backend
-uv run uvicorn src.backend.main:app --host 0.0.0.0 --port 8000
+uv run uvicorn src.backend.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 In a separate terminal:
 ```bash
 # Frontend
 cd src/frontend
-npm start
+npm install
+npm run dev
 ```
 
-The application will be available at `http://localhost:[PORT]`
+The frontend will be available at `http://localhost:3000` and will proxy API requests to `http://localhost:8000`.
+
+If you build the frontend with `npm run build`, FastAPI will also serve the generated static files from `http://localhost:8000`.
 
 ### Geocoding
 The system will automatically use coordinates from `data/kalpi_address_with_coords.csv` to geocode exact ballot locations.
@@ -93,7 +103,7 @@ The system will automatically use coordinates from `data/kalpi_address_with_coor
 #### Using Docker
 ```bash
 docker build -t kartokalpi .
-docker run -p [PORT]:[PORT] kartokalpi
+docker run -p 8000:8000 kartokalpi
 ```
 
 ## Usage
@@ -108,10 +118,19 @@ docker run -p [PORT]:[PORT] kartokalpi
 
 - **View Party Results**: Choose a party from the dropdown to see voting patterns across the map
   - Marker colors indicate voting strength for the selected party
-  - Marker size indicates total voter turnout
+  - Marker size indicates turnout intensity
   - The trend chart shows the party's performance over time
 
 - **Analyze Trends**: The trend chart at the bottom shows how a party's vote share changed across different election cycles
+
+- **Build a Custom Selection**: Click markers on the map to include or remove specific ballot venues from the historical trend chart
+
+## API Overview
+
+- `GET /api/health`: Liveness endpoint.
+- `GET /api/elections`: Election cycles with parties and mandates.
+- `GET /api/map-markers?knesset_number=<n>&party_sign=<sign>`: Mapped ballot venues with popup statistics and party-specific marker metrics.
+- `GET /api/trends?party_sign=<sign>&location_ids=<id>`: Historical party trend for the selected map locations. Repeating `location_ids` narrows the trend to a custom selection.
 
 ## Testing
 
@@ -128,7 +147,7 @@ uv run pytest
 
 ### Adding New Features
 - Add new election data CSVs in data/
-- Update `DataProcessor.KNESSET_INFO` in `src/backend/data_processor.py`
+- Extend the aggregation logic in `src/backend/data_repository.py`
 
 ### Ballot Address Data
 The `kalpi_address_with_coords.csv` file contains detailed information about each ballot location:
