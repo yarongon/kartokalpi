@@ -2,24 +2,44 @@
 
 ## Overview
 
-Karto-Kalpi is an interactive visualization platform that enables users to explore Israel's election results on a geographical map. The platform displays voting patterns and trends across different ballots, allowing users to analyze electoral data by location and track changes across multiple election cycles (Knesset 21-25).
+Karto-Kalpi is an interactive visualization platform that enables users to explore Israel's Knesset general election results through a geographical map interface.
 
 ## Features
 
-- **Interactive Map Display**: View election results per ballot location on an interactive map
-- **Multi-Knesset Analysis**: Compare results across Knesset sessions 21 through 25
-- **Trend Analysis**: Track trends of specific parties in ballots, neighorhoods and cities.
+- **General Elections Overview**:
+  Users can select a specific Knesset election from a dropdown menu to view the overall results for that cycle.
+- **View Parties Over the Elections**:
+  Users can track a specific political party's performance across multiple election cycles.
+- **Interactive Map Display**:
+  - An interactive map displays all ballot locations ("Kalpi"). Users can browse the map, click on a ballot, select an election cycle, and view the vote distribution for that specific location.
+  - Users can select single or multiple ballots along with a specific party to analyze the party's historical performance in those chosen areas.
 
 ## Data
 
-The project uses election data from the following Knesset sessions:
-- Knesset 21: 9/4/2019
-- Knesset 22: 17/9/2019
-- Knesset 23: 2/3/2020
-- Knesset 24: 23/3/2021
-- Knesset 25: 1/11/2022
+The project utilizes election results data from Knesset election cycles 18 through 25.
+The data is sourced from the Israeli Central Elections Committee.
+https://data.gov.il/he/datasets/central-election-committee/votes-knesset
 
-Data files are located in the `data/` directory as CSV files containing voting results per ballot.
+All the data files are located in the `data/` directory:
+
+- **normalized_election_results_18_to_25.csv**: Voting results per ballot for each elections cycle. 
+  - `knesset_number`: The Knesset number (election cycle).
+  - `locality_id`: An identifier for the city, town, kibbutz, etc.
+  - `kalpi_id`: An identifier for the ballot box within the locality.
+  - `party_sign`: A 1-4 character string representing the party.
+  - `votes`: The number of votes the party received in this ballot.
+- **knesset_election_results_18_to_25.csv**: Lists the parties that passed the electoral threshold in each cycle.
+  - `knesset_number`: The Knesset number (election cycle).
+  - `party_name`: The full name of the party.
+  - `party_sign`: A 1-4 character string representing the party.
+  - `mandates`: The number of seats the party won.
+- **kalpi_address_with_coords.csv**: Ballot location details used to automatically position ballots on the map and populate popup information.
+  - `locality_id`: An identifier for the city, town, kibbutz, etc.
+  - `locality_name`: The name of the locality.
+  - `kalpi_id`: An identifier for the ballot box.
+  - `kalpi_address`: The street address of the ballot.
+  - `kalpi_location`: The specific venue name (e.g., school, community center). If multiple ballots share a venue, all are displayed together.
+  - `coordinates`: A tuple containing latitude and longitude.
 
 ## Technology Stack
 
@@ -32,41 +52,43 @@ Data files are located in the `data/` directory as CSV files containing voting r
 
 ```
 kartokalpi/
-├── data/              # Election data CSV files
-├── src/               # Source code
+├── data/             # Election data CSV files
+├── src/              # Source code
 │   ├── frontend
 │   └── backend
-├── tests/             # Test files
+├── tests/            # Test files
+├── research/         # Notebooks and scripts used for preprocessing the data
 ├── Dockerfile         # Docker configuration
-└── README.md          # This file
+├── pyproject.toml
+└── README.md         # This file
 ```
 
 ## Getting Started
 
 ### Prerequisites
-- [List required dependencies - e.g., Node.js, Python 3.x, Docker, etc.]
-- [Any other prerequisites]
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone [repository URL]
-cd kartokalpi
-```
-
-2. [Add specific installation steps for your project]
-
-3. [Additional setup steps if needed]
+- Python 3.13+
+- Node.js 24+
+- Docker (optional)
 
 ### Running the Project
 
 #### Local Development
 ```bash
-[Add command to start development server]
+# Backend
+uv run uvicorn src.backend.main:app --host 0.0.0.0 --port 8000
+```
+
+In a separate terminal:
+```bash
+# Frontend
+cd src/frontend
+npm start
 ```
 
 The application will be available at `http://localhost:[PORT]`
+
+### Geocoding
+The system will automatically use coordinates from `data/kalpi_address_with_coords.csv` to geocode exact ballot locations.
 
 #### Using Docker
 ```bash
@@ -76,34 +98,48 @@ docker run -p [PORT]:[PORT] kartokalpi
 
 ## Usage
 
-[Describe how users can interact with the application, including:]
-- How to navigate the map
-- How to select different elections/Knesset sessions
-- How to view trends
-- [Any other key user interactions]
+- **Navigate the Map**: Click on ballot markers to see detailed information including:
+  - Ballot address and specific location name (e.g., school name)
+  - Total number of ballots in that location
+  - Voter statistics (total voters, valid votes, invalid votes)
+  - Election results for the selected party per different elections
+
+- **Select Different Elections**: Use the dropdown to view results from different Knesset sessions (21-25)
+
+- **View Party Results**: Choose a party from the dropdown to see voting patterns across the map
+  - Marker colors indicate voting strength for the selected party
+  - Marker size indicates total voter turnout
+  - The trend chart shows the party's performance over time
+
+- **Analyze Trends**: The trend chart at the bottom shows how a party's vote share changed across different election cycles
 
 ## Testing
 
 Run tests with:
 ```bash
-[Add test command]
+uv run pytest
 ```
 
 ## Development
 
 ### Code Style
-[Describe code style guidelines if applicable]
+- Follow Black formatting for Python
+- Use ESLint defaults for React
 
 ### Adding New Features
-[Describe process for adding new features or election data]
+- Add new election data CSVs in data/
+- Update `DataProcessor.KNESSET_INFO` in `src/backend/data_processor.py`
 
-## Deployment
+### Ballot Address Data
+The `kalpi_address_with_coords.csv` file contains detailed information about each ballot location:
+- **coordinates**: a tuples (lat/long).
+- **Street addresses**: to display when clicking on the ballot.
+- **Location details**: Specific venue names (schools, community centers, etc.), to display when clicking on the ballot.
 
-[Describe deployment instructions for production environment]
-
-## Contributing
-
-[Describe how others can contribute to the project]
+The system automatically uses this data to:
+1. Position the ballots on the map
+1. Populate popup information on the map with addresses and venue names
+1. If more than one ballot is in the same venue, display all ballots in this venue
 
 ## License
 

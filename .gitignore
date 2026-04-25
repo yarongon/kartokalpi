@@ -10,8 +10,26 @@ wheels/
 # Virtual environments
 .venv
 .DS_Store
+src/frontend/node_modules/
+
 data/votes_knesset_21.csv
 data/votes_knesset_22.csv
 data/votes_knesset_23.csv
 data/votes_knesset_24.csv
 data/votes_knesset_25.csv
+
+data/kalpi_address_with_coords.csv
+data/knesset_election_results_18_to_25.csv
+data/normalized_election_results_18_to_25.csv
+data/original_data/elections_18_results_utf8.csv
+data/original_data/elections_19_results_utf8.csv
+data/original_data/elections_20_results_utf8.csv
+data/original_data/elections_21_results_utf8.csv
+data/original_data/elections_22_results_utf8.csv
+data/original_data/elections_23_results_utf8.csv
+data/original_data/elections_24_results_utf8.csv
+data/original_data/elections_25_results_utf8.csv
+data/original_data/kalpi_address_with_coords.csv
+data/original_data/kalpi_address.csv
+research/geocoding_cache_old.json
+research/geocoding_cache.json

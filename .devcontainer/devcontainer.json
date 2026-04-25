@@ -8,12 +8,12 @@
     "customizations": {
         "vscode": {
             "extensions": [
-				"GitHub.copilot"
+                "openai.chatgpt"
             ]
         }
     },
     // "postCreateCommand": "",
     // "remoteUser": "vscode"
-	// "forwardPorts": [8080],
+	"forwardPorts": [8080, 3000, 8000, 1455]
 	// "runArgs": ["--env-file", ".devcontainer/.env"]
 }
