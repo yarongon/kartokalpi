@@ -1,0 +1,25 @@
+# VCS
+.git
+.gitignore
+
+# Python cache and virtual environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+
+# Node artifacts
+src/frontend/node_modules/
+src/frontend/dist/
+
+# Local dev and research files
+research/
+tests/
+*.ipynb
+
+# Editor and OS files
+.vscode/
+.DS_Store
