@@ -2,6 +2,7 @@
 
 :root {
   font-family: 'IBM Plex Sans Hebrew', sans-serif;
+  direction: rtl;
   color: #10243a;
   background:
     radial-gradient(circle at top left, rgba(240, 201, 135, 0.45), transparent 24%),
@@ -226,6 +227,20 @@ select {
   border-radius: 999px;
   color: #10243a;
   background: rgba(255, 253, 247, 0.92);
+}
+
+.map-hint {
+  position: absolute;
+  z-index: 900;
+  left: 16px;
+  top: 16px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(16, 36, 58, 0.14);
+  background: rgba(255, 253, 247, 0.92);
+  color: rgba(16, 36, 58, 0.82);
+  max-width: 320px;
+  font-size: 0.92rem;
 }
 
 .legend-row {

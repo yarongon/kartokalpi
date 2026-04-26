@@ -3,6 +3,8 @@ import { CircleMarker, MapContainer, Popup, TileLayer, useMapEvents } from 'reac
 import 'leaflet/dist/leaflet.css'
 
 const INITIAL_CENTER = [31.4117, 35.0818]
+const INITIAL_ZOOM = 8
+const MIN_MARKER_ZOOM = 10
 const INITIAL_BOUNDS = {
   minLat: 29.0,
   maxLat: 33.6,
@@ -36,7 +38,7 @@ function PopupHistoryBars({ history, partySign }) {
   const maxVotes = Math.max(...history.map((item) => item.votes), 1)
 
   return (
-    <div className="history-bars" role="img" aria-label="Selected party across elections">
+    <div className="history-bars" role="img" aria-label="המפלגה הנבחרת לאורך בחירות">
       {history.map((item) => (
         <div className="history-row" key={`${partySign}-${item.knesset_number}`}>
           <span className="history-year">{item.knesset_number}</span>
@@ -53,37 +55,36 @@ function PopupHistoryBars({ history, partySign }) {
   )
 }
 
-function MapViewportWatcher({ onBoundsChange }) {
-  const lastBoundsKey = useRef('')
+function MapViewportWatcher({ onViewportChange }) {
+  const lastViewportKey = useRef('')
+
+  const emitViewport = (map) => {
+    const bounds = map.getBounds()
+    const nextViewport = {
+      bounds: {
+        minLat: Number(bounds.getSouth().toFixed(5)),
+        maxLat: Number(bounds.getNorth().toFixed(5)),
+        minLng: Number(bounds.getWest().toFixed(5)),
+        maxLng: Number(bounds.getEast().toFixed(5)),
+      },
+      zoom: Number(map.getZoom().toFixed(2)),
+    }
+    const nextKey = JSON.stringify(nextViewport)
+    if (lastViewportKey.current !== nextKey) {
+      lastViewportKey.current = nextKey
+      onViewportChange(nextViewport)
+    }
+  }
 
   useMapEvents({
     load(event) {
-      const bounds = event.target.getBounds()
-      const nextBounds = {
-        minLat: Number(bounds.getSouth().toFixed(5)),
-        maxLat: Number(bounds.getNorth().toFixed(5)),
-        minLng: Number(bounds.getWest().toFixed(5)),
-        maxLng: Number(bounds.getEast().toFixed(5)),
-      }
-      const nextKey = JSON.stringify(nextBounds)
-      if (lastBoundsKey.current !== nextKey) {
-        lastBoundsKey.current = nextKey
-        onBoundsChange(nextBounds)
-      }
+      emitViewport(event.target)
     },
     moveend(event) {
-      const bounds = event.target.getBounds()
-      const nextBounds = {
-        minLat: Number(bounds.getSouth().toFixed(5)),
-        maxLat: Number(bounds.getNorth().toFixed(5)),
-        minLng: Number(bounds.getWest().toFixed(5)),
-        maxLng: Number(bounds.getEast().toFixed(5)),
-      }
-      const nextKey = JSON.stringify(nextBounds)
-      if (lastBoundsKey.current !== nextKey) {
-        lastBoundsKey.current = nextKey
-        onBoundsChange(nextBounds)
-      }
+      emitViewport(event.target)
+    },
+    zoomend(event) {
+      emitViewport(event.target)
     },
   })
 
@@ -92,7 +93,7 @@ function MapViewportWatcher({ onBoundsChange }) {
 
 function TrendChart({ trend }) {
   if (!trend) {
-    return <div className="chart-empty">Pick a party to display a historical trend.</div>
+    return <div className="chart-empty">בחרו מפלגה כדי להציג מגמה היסטורית.</div>
   }
 
   const points = trend.series
@@ -114,15 +115,14 @@ function TrendChart({ trend }) {
     <section className="trend-panel">
       <div className="trend-header">
         <div>
-          <p className="eyebrow">Historical trend</p>
+          <p className="eyebrow">מגמה היסטורית</p>
           <h2>{trend.party_sign}</h2>
         </div>
         <p>
-          {formatNumber(trend.selection.ballot_count)} ballots across {formatNumber(trend.selection.location_count)} mapped
-          locations
+          {formatNumber(trend.selection.ballot_count)} קלפיות ב־{formatNumber(trend.selection.location_count)} מיקומים ממופים
         </p>
       </div>
-      <svg viewBox={`0 0 ${width} ${height}`} className="trend-chart" role="img" aria-label="Party vote share trend">
+      <svg viewBox={`0 0 ${width} ${height}`} className="trend-chart" role="img" aria-label="מגמת אחוז קולות למפלגה">
         <line x1="48" y1={height - padY} x2={width - padX} y2={height - padY} className="axis" />
         <line x1="48" y1={padY} x2="48" y2={height - padY} className="axis" />
         <polyline points={polyline} className="trend-line" />
@@ -145,10 +145,10 @@ function TrendChart({ trend }) {
       <div className="trend-grid">
         {points.map((point) => (
           <article className="trend-card" key={point.knesset_number}>
-            <strong>Knesset {point.knesset_number}</strong>
+            <strong>כנסת {point.knesset_number}</strong>
             <span>{point.party_name || trend.party_sign}</span>
-            <span>{formatNumber(point.party_votes)} votes</span>
-            <span>{formatPercent(point.vote_share)} share</span>
+            <span>{formatNumber(point.party_votes)} קולות</span>
+            <span>{formatPercent(point.vote_share)} נתח</span>
           </article>
         ))}
       </div>
@@ -165,7 +165,10 @@ export default function App() {
   const [selectedLocationMeta, setSelectedLocationMeta] = useState({})
   const [trend, setTrend] = useState(null)
   const [loadingMap, setLoadingMap] = useState(false)
-  const [mapBounds, setMapBounds] = useState(INITIAL_BOUNDS)
+  const [mapViewport, setMapViewport] = useState({
+    bounds: INITIAL_BOUNDS,
+    zoom: INITIAL_ZOOM,
+  })
 
   useEffect(() => {
     fetch('/api/elections')
@@ -193,17 +196,28 @@ export default function App() {
   }, [selectedElection, party])
 
   useEffect(() => {
-    if (!election || !mapBounds) return
+    if (!election || !mapViewport) return
+
+    if (mapViewport.zoom < MIN_MARKER_ZOOM) {
+      setMarkers([])
+      setLoadingMap(false)
+      return
+    }
+
+    const abortController = new AbortController()
     setLoadingMap(true)
+
     const params = new URLSearchParams({ knesset_number: election })
     if (party) params.set('party_sign', party)
-    params.set('min_lat', String(mapBounds.minLat))
-    params.set('max_lat', String(mapBounds.maxLat))
-    params.set('min_lng', String(mapBounds.minLng))
-    params.set('max_lng', String(mapBounds.maxLng))
-    fetch(`/api/map-markers?${params.toString()}`)
+    params.set('min_lat', String(mapViewport.bounds.minLat))
+    params.set('max_lat', String(mapViewport.bounds.maxLat))
+    params.set('min_lng', String(mapViewport.bounds.minLng))
+    params.set('max_lng', String(mapViewport.bounds.maxLng))
+
+    fetch(`/api/map-markers?${params.toString()}`, { signal: abortController.signal })
       .then((response) => response.json())
       .then((payload) => {
+        if (abortController.signal.aborted) return
         setMarkers(payload.markers ?? [])
         setSelectedLocationMeta((current) => {
           const next = { ...current }
@@ -217,8 +231,19 @@ export default function App() {
           return next
         })
       })
-      .finally(() => setLoadingMap(false))
-  }, [election, party, mapBounds])
+      .catch((error) => {
+        if (error.name !== 'AbortError') {
+          console.error('Failed to load map markers', error)
+        }
+      })
+      .finally(() => {
+        if (!abortController.signal.aborted) {
+          setLoadingMap(false)
+        }
+      })
+
+    return () => abortController.abort()
+  }, [election, party, mapViewport])
 
   useEffect(() => {
     if (!party) {
@@ -242,29 +267,29 @@ export default function App() {
   }
 
   const selectedPartyMeta = selectedElection?.parties.find((item) => item.party_sign === party)
+  const shouldLoadMarkers = mapViewport.zoom >= MIN_MARKER_ZOOM
 
   return (
     <div className="app-shell">
       <header className="hero">
         <div>
-          <p className="eyebrow">Knesset election explorer</p>
-          <h1>Karto-Kalpi</h1>
+          <p className="eyebrow">סייר תוצאות בחירות לכנסת</p>
+          <h1>קרטו-קלפי</h1>
           <p className="hero-copy">
-            Inspect ballot-level election results on a map, compare party strength by location, and track
-            multi-election trends for any selected set of ballot venues.
+            בחנו תוצאות בחירות ברמת קלפי על גבי מפה, השוו עוצמת מפלגות לפי מיקום ועקבו אחר מגמות בין-מחזוריות לכל קבוצת קלפיות שתבחרו.
           </p>
         </div>
         <div className="hero-metrics">
           <article>
-            <span>Election</span>
+            <span>בחירות</span>
             <strong>{election || '—'}</strong>
           </article>
           <article>
-            <span>Party</span>
+            <span>מפלגה</span>
             <strong>{selectedPartyMeta ? `${selectedPartyMeta.party_name} (${selectedPartyMeta.party_sign})` : '—'}</strong>
           </article>
           <article>
-            <span>Selected locations</span>
+            <span>מיקומים נבחרים</span>
             <strong>{formatNumber(selectedLocations.length)}</strong>
           </article>
         </div>
@@ -274,17 +299,17 @@ export default function App() {
         <aside className="control-panel">
           <section className="panel-section">
             <label>
-              <span>Knesset cycle</span>
+              <span>מחזור כנסת</span>
               <select value={election} onChange={(event) => setElection(event.target.value)}>
                 {elections.map((item) => (
                   <option key={item.knesset_number} value={item.knesset_number}>
-                    Knesset {item.knesset_number}
+                    כנסת {item.knesset_number}
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              <span>Party</span>
+              <span>מפלגה</span>
               <select value={party} onChange={(event) => setParty(event.target.value)}>
                 {selectedElection?.parties.map((item) => (
                   <option key={item.party_sign} value={item.party_sign}>
@@ -297,8 +322,8 @@ export default function App() {
 
           <section className="panel-section standings">
             <div className="section-title">
-              <h2>Election overview</h2>
-              <span>{selectedElection?.total_mandates ?? 0} mandates</span>
+              <h2>סקירת בחירות</h2>
+              <span>{selectedElection?.total_mandates ?? 0} מנדטים</span>
             </div>
             <div className="party-list">
               {selectedElection?.parties.map((item) => (
@@ -318,9 +343,12 @@ export default function App() {
 
         <section className="map-panel">
           <div className="map-frame">
-            {loadingMap ? <div className="map-loading">Loading map data…</div> : null}
-            <MapContainer center={INITIAL_CENTER} zoom={8} scrollWheelZoom className="map-canvas">
-              <MapViewportWatcher onBoundsChange={setMapBounds} />
+            {loadingMap ? <div className="map-loading">טוען נתוני מפה…</div> : null}
+            {!shouldLoadMarkers ? (
+              <div className="map-hint">התקרבו לרמה {MIN_MARKER_ZOOM} או יותר כדי לטעון קלפיות באזור זה.</div>
+            ) : null}
+            <MapContainer center={INITIAL_CENTER} zoom={INITIAL_ZOOM} scrollWheelZoom className="map-canvas">
+              <MapViewportWatcher onViewportChange={setMapViewport} />
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -345,27 +373,27 @@ export default function App() {
                         <h3>{marker.locality_name}</h3>
                         <p>{marker.location_name || marker.address}</p>
                         <p>{marker.address}</p>
-                        <p>{marker.ballot_count} ballots at this venue</p>
+                        <p>{marker.ballot_count} קלפיות במיקום זה</p>
                         <dl>
                           <div>
-                            <dt>Total voters</dt>
+                            <dt>סך מצביעים</dt>
                             <dd>{formatNumber(marker.stats.total_voters)}</dd>
                           </div>
                           <div>
-                            <dt>Valid votes</dt>
+                            <dt>קולות כשרים</dt>
                             <dd>{formatNumber(marker.stats.valid_votes)}</dd>
                           </div>
                           <div>
-                            <dt>Invalid votes</dt>
+                            <dt>קולות פסולים</dt>
                             <dd>{formatNumber(marker.stats.invalid_votes)}</dd>
                           </div>
                           <div>
-                            <dt>Party share</dt>
+                            <dt>נתח מפלגה</dt>
                             <dd>{formatPercent(marker.stats.party_vote_share)}</dd>
                           </div>
                         </dl>
                         <div className="popup-block">
-                          <strong>Top parties in this election</strong>
+                          <strong>המפלגות המובילות בבחירות אלה</strong>
                           <ul>
                             {marker.top_parties.map((item) => (
                               <li key={`${marker.location_id}-${item.party_sign}`}>
@@ -376,7 +404,7 @@ export default function App() {
                         </div>
                         {marker.party_history.length > 0 ? (
                           <div className="popup-block">
-                            <strong>Selected party across elections</strong>
+                            <strong>המפלגה הנבחרת לאורך הבחירות</strong>
                             <PopupHistoryBars history={marker.party_history} partySign={party} />
                           </div>
                         ) : null}
@@ -389,17 +417,17 @@ export default function App() {
           </div>
           <section className="selection-panel">
             <div className="section-title">
-              <h2>Selection</h2>
+              <h2>בחירה</h2>
               <button className="ghost-button" onClick={() => setSelectedLocations([])} type="button">
-                Clear
+                נקה
               </button>
             </div>
             <p className="helper-copy">
-              Click map markers to build a custom set of ballot venues for the historical trend chart.
+              לחצו על סמני המפה כדי לבנות קבוצת קלפיות מותאמת אישית לתרשים המגמה ההיסטורית.
             </p>
             <div className="selection-list">
               {selectedLocations.length === 0 ? (
-                <span className="empty-state">No locations selected. Trend shows the mapped national picture.</span>
+                <span className="empty-state">לא נבחרו מיקומים. המגמה מציגה את התמונה הארצית הממופה.</span>
               ) : (
                 selectedLocations.map((locationId) => {
                   const marker = selectedLocationMeta[locationId]
@@ -419,11 +447,11 @@ export default function App() {
             </div>
           </section>
           <div className="legend-row">
-            <span><i className="swatch share-high" /> strong party share</span>
-            <span><i className="swatch share-mid" /> medium share</span>
-            <span><i className="swatch share-low" /> low share</span>
-            <span><i className="swatch share-none" /> no recorded share</span>
-            <span>marker size reflects turnout in the visible map area</span>
+            <span><i className="swatch share-high" /> נתח מפלגה גבוה</span>
+            <span><i className="swatch share-mid" /> נתח בינוני</span>
+            <span><i className="swatch share-low" /> נתח נמוך</span>
+            <span><i className="swatch share-none" /> אין נתח מתועד</span>
+            <span>גודל הסמן משקף את אחוז ההצבעה באזור המוצג</span>
           </div>
         </section>
       </main>
