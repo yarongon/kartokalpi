@@ -165,6 +165,7 @@ export default function App() {
   const [selectedLocationMeta, setSelectedLocationMeta] = useState({})
   const [trend, setTrend] = useState(null)
   const [loadingMap, setLoadingMap] = useState(false)
+  const [headerMinimized, setHeaderMinimized] = useState(false)
   const [mapViewport, setMapViewport] = useState({
     bounds: INITIAL_BOUNDS,
     zoom: INITIAL_ZOOM,
@@ -271,12 +272,24 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <header className="hero">
-        <div>
+      <header className={`hero ${headerMinimized ? 'hero-minimized' : ''}`}>
+        <button className="minimize-button" onClick={() => setHeaderMinimized(!headerMinimized)} aria-label="Toggle header">
+          {headerMinimized ? '▼' : '▲'}
+        </button>
+        <h1>קרטו-קלפי</h1>
+        <div className="hero-content">
           <p className="eyebrow">סייר תוצאות בחירות לכנסת</p>
-          <h1>קרטו-קלפי</h1>
           <p className="hero-copy">
             בחנו תוצאות בחירות ברמת קלפי על גבי מפה, השוו עוצמת מפלגות לפי מיקום ועקבו אחר מגמות בין-מחזוריות לכל קבוצת קלפיות שתבחרו.
+          </p>
+          <p className="hero-links">
+            <a href="https://data.gov.il/he/datasets/central-election-committee/votes-knesset" target="_blank" rel="noopener noreferrer">
+              נתונים מועדת הבחירות המרכזית
+            </a>
+            <span> • </span>
+            <a href="https://github.com/yarongon/kartokalpi/" target="_blank" rel="noopener noreferrer">
+              GitHub
+            </a>
           </p>
         </div>
         <div className="hero-metrics">
